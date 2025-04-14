@@ -1,0 +1,40 @@
+{
+  "servers": [
+    {
+      "name": "file-tools-server",
+      "command": "python",
+      "args": ["-m", "mcp.servers.file_tools"],
+      "tools": [
+        "read_file",
+        "write_file",
+        "list_directory"
+      ]
+    },
+    {
+      "name": "web-tools-server",
+      "command": "python",
+      "args": ["-m", "mcp.servers.web_tools"],
+      "tools": [
+        "fetch_url",
+        "search_web"
+      ]
+    },
+    {
+      "name": "custom-tools-server",
+      "module": "custom_tools_server",
+      "config": {
+        "api_keys": {
+          "example_service": "${EXAMPLE_API_KEY}"
+        }
+      }
+    }
+  ],
+  "client": {
+    "timeout": 30,
+    "retry_count": 3
+  },
+  "logging": {
+    "level": "INFO",
+    "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  }
+}
