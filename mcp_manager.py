@@ -3,11 +3,15 @@ import logging
 import subprocess
 import time
 import psutil
+import os
 from typing import Dict, List, Any, Optional, Tuple
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Check if we're running in test mode
+TESTING = os.environ.get("TESTING", "0") == "1"
 
 class MCPManager:
     """Manager for MCP servers and client functionality combined"""
@@ -27,7 +31,10 @@ class MCPManager:
             raise
         
         # Start MCP servers
-        self.start_mcp_servers()
+        if not TESTING:
+            self.start_mcp_servers()
+        else:
+            logger.info("Running in test mode, skipping MCP server startup")
         
         # Initialize MCP client SDK
         self.client = self._initialize_client()
@@ -36,10 +43,17 @@ class MCPManager:
         """Initialize MCP client SDK connection"""
         try:
             # Import MCP SDK
-            from mcp import Client
-            client = Client()
-            logger.info("MCP Client initialized successfully")
-            return client
+            if not TESTING:
+                from mcp import Client
+                client = Client()
+                logger.info("MCP Client initialized successfully")
+                return client
+            else:
+                # Use a mock client for testing
+                from tests.mock_mcp import Client
+                client = Client()
+                logger.info("Mock MCP Client initialized for testing")
+                return client
         except ImportError:
             logger.error("Failed to import MCP SDK. Make sure it's installed.")
             raise
@@ -48,7 +62,10 @@ class MCPManager:
         """Start all configured MCP servers"""
         try:
             # Import MCP SDK
-            from mcp import start_server
+            if not TESTING:
+                from mcp import start_server
+            else:
+                from tests.mock_mcp import start_server
             
             # Start each server based on config
             for server_config in self.config.get("servers", []):

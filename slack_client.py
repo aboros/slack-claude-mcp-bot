@@ -1,11 +1,9 @@
 import json
 import uuid
 from claude_client import ClaudeClient
-from mcp_manager import MCPManager
-from main import mcp_manager  # Import the global instance from main.py
 
-# Remove redundant initialization
-# mcp_manager = MCPManager("mcp.config.json")
+# We'll import mcp_manager in the functions that need it to avoid circular imports
+# from main import mcp_manager
 
 # Temporary storage for conversation histories
 # Maps conversation_id -> conversation
@@ -50,6 +48,9 @@ def format_messages_for_claude(messages):
 
 def process_message(client, event, say, user_message, thread_history=None):
     """Process user message and handle Claude interaction"""
+    # Import mcp_manager here to avoid circular imports
+    from main import mcp_manager
+    
     # Initialize Claude client
     claude = ClaudeClient()
     
@@ -108,6 +109,9 @@ def request_tool_approval(client, event, say, claude, conversation_id, tool_requ
 
 def handle_tool_approval(client, body, say):
     """Handle user approval of tool use"""
+    # Import mcp_manager here to avoid circular imports
+    from main import mcp_manager
+    
     # Parse payload value for conversation_id and request_id
     payload = json.loads(body["actions"][0]["value"])
     conversation_id = payload["conversation_id"]
@@ -144,7 +148,13 @@ def handle_tool_approval(client, body, say):
     conversation_store[conversation_id] = response.conversation
     
     # Handle Claude's response to the tool result
-    event = {"channel": body["channel"]["id"], "ts": body["message"]["thread_ts"]}
+    # Use message_thread_ts if available, otherwise use ts
+    thread_ts = body.get("message_thread_ts", body.get("container", {}).get("thread_ts"))
+    # If thread_ts is still None, fall back to the message ts
+    if thread_ts is None:
+        thread_ts = body["message"]["ts"]
+        
+    event = {"channel": body["channel"]["id"], "ts": thread_ts}
     handle_claude_response(client, event, say, claude, response)
 
 def handle_tool_denial(client, body, say):
@@ -182,7 +192,13 @@ def handle_tool_denial(client, body, say):
     conversation_store[conversation_id] = response.conversation
     
     # Handle Claude's response to the denial
-    event = {"channel": body["channel"]["id"], "ts": body["message"]["thread_ts"]}
+    # Use message_thread_ts if available, otherwise use ts
+    thread_ts = body.get("message_thread_ts", body.get("container", {}).get("thread_ts"))
+    # If thread_ts is still None, fall back to the message ts
+    if thread_ts is None:
+        thread_ts = body["message"]["ts"]
+        
+    event = {"channel": body["channel"]["id"], "ts": thread_ts}
     handle_claude_response(client, event, say, claude, response)
 
 def post_message(say, content, event):

@@ -11,13 +11,16 @@ logger = logging.getLogger(__name__)
 SLACK_BOT_TOKEN = os.environ.get("SLACK_BOT_TOKEN")
 CLAUDE_API_KEY = os.environ.get("CLAUDE_API_KEY")
 
+# Check if we're running in test mode
+TESTING = os.environ.get("TESTING", "0") == "1"
+
 # Initialize MCP servers from config globally
 mcp_manager = MCPManager("mcp.config.json")
 
-# Import handlers after defining mcp_manager to avoid circular imports
-from slack_client import handle_mention, handle_tool_approval, handle_tool_denial
-
 def main():
+    # Import handlers here to avoid circular imports
+    from slack_client import handle_mention, handle_tool_approval, handle_tool_denial
+    
     # Initialize slack bolt app
     app = App(
         token=SLACK_BOT_TOKEN,

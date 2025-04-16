@@ -1,0 +1,48 @@
+{
+    "servers": [
+        {
+            "name": "test-tool-server",
+            "command": "python",
+            "args": ["-m", "http.server", "8001"],
+            "environment": {
+                "TEST_ENV_VAR": "test_value"
+            }
+        },
+        {
+            "name": "test-data-server",
+            "command": "node",
+            "args": ["test_server.js"],
+            "environment": {
+                "NODE_ENV": "test"
+            }
+        }
+    ],
+    "tools": [
+        {
+            "name": "test_tool",
+            "description": "A test tool for testing purposes",
+            "server": "test-tool-server",
+            "parameters": {
+                "param1": {
+                    "type": "string",
+                    "description": "First parameter"
+                },
+                "param2": {
+                    "type": "integer",
+                    "description": "Second parameter"
+                }
+            }
+        },
+        {
+            "name": "data_retrieval",
+            "description": "Retrieves test data",
+            "server": "test-data-server",
+            "parameters": {
+                "query": {
+                    "type": "string",
+                    "description": "Search query"
+                }
+            }
+        }
+    ]
+} 
