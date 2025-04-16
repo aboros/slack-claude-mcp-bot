@@ -36,7 +36,7 @@ The flow is triggered when a user mentions the bot in a Slack channel or thread.
 
 ## MCP Integration
 
-The application uses the [Model Context Protocol](https://modelcontextprotocol.io/quickstart/client#python) SDK to:
+The application uses the [Model Context Protocol](https://modelcontextprotocol.io/) SDK to:
 
 - Load tool configurations from `mcp.config.json`
 - Launch configured MCP servers at startup
@@ -262,17 +262,47 @@ class MCPManager:
         self.start_mcp_servers()
         
         # Initialize MCP client
-        self.client = MCPClient()
+        self.client = self._initialize_client()
+    
+    def _initialize_client(self):
+        """Initialize MCP client SDK connection"""
+        # Import MCP SDK
+        from mcp.client.stdio import stdio_client, StdioServerParameters
+        
+        # Initialize with server config
+        server_config = self.config.get("servers", [{}])[0]
+        server_cmd = server_config.get("command", "")
+        server_args = server_config.get("args", [])
+        
+        # Create server parameters for the stdio client
+        server_params = StdioServerParameters(
+            command=server_cmd if server_cmd else "echo",
+            args=server_args
+        )
+        
+        # Create and return the client
+        return stdio_client(server=server_params)
     
     def start_mcp_servers(self):
         """Start all configured MCP servers"""
         # Import MCP SDK
-        from mcp import MCPServer
+        from mcp.server import Server
         
         # Start each server based on config
-        for server_config in self.config["servers"]:
-            # Launch server with specified configuration
-            pass
+        for server_config in self.config.get("servers", []):
+            server_name = server_config.get("name", "unnamed-server")
+            server_cmd = server_config.get("command")
+            server_args = server_config.get("args", [])
+            
+            if server_cmd:
+                # Start server as subprocess
+                process = self._start_process(server_cmd, server_args)
+                self.server_processes[server_name] = process
+            else:
+                # Create MCP server object (note: requires async context to run)
+                version = server_config.get("version", "1.0.0")
+                instructions = server_config.get("instructions", "")
+                Server(name=server_name, version=version, instructions=instructions)
     
     def get_available_tools(self):
         """Get list of available tools from MCP servers"""

@@ -27,7 +27,7 @@ The current slack-claude-mcp-bot project is structured as follows:
 1. **Comprehensive MCP Integration**: Handles the lifecycle of MCP server connections, which is directly relevant to our Slack bot's core functionality.
 2. **Composable Agent Patterns**: Implements various agent workflows (AugmentedLLM, Parallel, Router, Intent-Classifier, Orchestrator-Workers, Evaluator-Optimizer) that could enhance the bot's capabilities.
 3. **Multiple Example Applications**: Includes examples with Claude Desktop, Streamlit, and various Python implementations that could serve as reference points.
-4. **Simplified MCP Server Management**: The MCP server management system could replace or enhance our current implementation in `mcp_manager.py`.
+4. **Simplified MCP Server Management**: The MCP server management system could replace or enhance our current implementation in `mcp_manager.py`, particularly for running async MCP servers properly.
 5. **Human Input Handling**: Has built-in mechanisms for human-in-the-loop workflows, which would be useful for the approval flow in our Slack bot.
 
 ### Cons
@@ -72,7 +72,7 @@ Based on the evaluation, both libraries offer valuable features, but **lastmile-
 
 If incorporating `mcp-agent`:
 
-1. **Start with MCP Server Management**: Replace the custom `mcp_manager.py` with the `mcp-agent` server management system.
+1. **Start with MCP Server Management**: Replace the current `mcp_manager.py` implementation with the `mcp-agent` server management system, which may provide better async support for MCP servers.
 2. **Adapt the Agent Model**: Modify the current Claude client to leverage `mcp-agent`'s agent patterns.
 3. **Incorporate Workflows Gradually**: Start with the AugmentedLLM pattern for basic interactions, then expand to more complex patterns as needed.
 4. **Maintain Slack-Specific Logic**: Keep the Slack API interaction code separate from the agent logic.

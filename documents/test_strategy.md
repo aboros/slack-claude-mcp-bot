@@ -76,6 +76,10 @@
 - Verify server start/stop/restart functionality
 - Test tool discovery and execution
 - Validate error handling for server failures
+- Test the correct initialization of `stdio_client` with proper parameters
+- Verify the `Server` class is correctly used when starting servers
+- Test handling of async requirements for MCP servers
+- Validate proper cleanup of server processes on shutdown
 
 ### ClaudeClient Tests:
 - Test conversation creation with/without tools

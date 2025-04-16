@@ -27,7 +27,7 @@ The bot is triggered when a user mentions it in a Slack channel or thread. It pr
 
 ## MCP Integration
 
-The application uses the [Model Context Protocol](https://modelcontextprotocol.io/quickstart/client#python) SDK to:
+The application uses the [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) SDK to:
 
 - Load tool configurations from `mcp.config.json`
 - Launch configured MCP servers at startup
@@ -38,7 +38,7 @@ The application uses the [Model Context Protocol](https://modelcontextprotocol.i
 
 1. Install dependencies:
    ```
-   pip install slack-bolt anthropic mcp-sdk
+   pip install -r requirements.txt
    ```
 
 2. Set environment variables:

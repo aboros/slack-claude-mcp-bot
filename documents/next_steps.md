@@ -35,6 +35,8 @@
    - Add timeout handling for long-running tools
    - Implement progress updates for tools that take time to complete
    - Create tool execution history for audit purposes
+   - Properly implement async context for MCP servers when not using subprocess
+   - Improve error handling for MCP server startup failures
 
 3. **User Experience**
    - Enhance tool approval UI with more details and timeout indicators
@@ -71,6 +73,8 @@
    - Add support for tool authentication and authorization
    - Implement tool usage metrics and quotas
    - Create a tool marketplace for sharing custom tools
+   - Implement proper async support for MCP servers
+   - Add better MCP server health checking and auto-recovery
 
 5. **Conversation Memory**
    - Implement selective conversation storage for reference
