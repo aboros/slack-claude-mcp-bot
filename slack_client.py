@@ -2,9 +2,10 @@ import json
 import uuid
 from claude_client import ClaudeClient
 from mcp_manager import MCPManager
+from main import mcp_manager  # Import the global instance from main.py
 
-# Global instance of MCP manager - will be initialized in main.py
-mcp_manager = None
+# Remove redundant initialization
+# mcp_manager = MCPManager("mcp.config.json")
 
 # Temporary storage for conversation histories
 # Maps conversation_id -> conversation

@@ -2,50 +2,15 @@ import json
 import logging
 import subprocess
 import time
-from typing import Dict, List, Any
+import psutil
+from typing import Dict, List, Any, Optional, Tuple
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-class MCPClient:
-    """Client for interacting with MCP servers"""
-    
-    def __init__(self):
-        try:
-            # Import MCP SDK
-            from mcp import Client
-            self.client = Client()
-            logger.info("MCP Client initialized successfully")
-        except ImportError:
-            logger.error("Failed to import MCP SDK. Make sure it's installed.")
-            raise
-    
-    def list_tools(self) -> List[Dict[str, Any]]:
-        """Get list of available tools from MCP servers"""
-        try:
-            # This is a placeholder - actual implementation depends on MCP SDK
-            tools = self.client.list_tools()
-            logger.info(f"Retrieved {len(tools)} tools from MCP servers")
-            return tools
-        except Exception as e:
-            logger.error(f"Error retrieving tools: {e}")
-            return []
-    
-    def execute_tool(self, request_id: str) -> Dict[str, Any]:
-        """Execute tool via MCP"""
-        try:
-            # This is a placeholder - actual implementation depends on MCP SDK
-            result = self.client.execute_tool(request_id)
-            logger.info(f"Tool execution for request {request_id} completed successfully")
-            return result
-        except Exception as e:
-            logger.error(f"Error executing tool for request {request_id}: {e}")
-            return {"error": str(e)}
-
-
 class MCPManager:
-    """Manager for MCP servers"""
+    """Manager for MCP servers and client functionality combined"""
     
     def __init__(self, config_path: str):
         """Initialize MCP servers from config"""
@@ -64,8 +29,20 @@ class MCPManager:
         # Start MCP servers
         self.start_mcp_servers()
         
-        # Initialize MCP client
-        self.client = MCPClient()
+        # Initialize MCP client SDK
+        self.client = self._initialize_client()
+    
+    def _initialize_client(self):
+        """Initialize MCP client SDK connection"""
+        try:
+            # Import MCP SDK
+            from mcp import Client
+            client = Client()
+            logger.info("MCP Client initialized successfully")
+            return client
+        except ImportError:
+            logger.error("Failed to import MCP SDK. Make sure it's installed.")
+            raise
     
     def start_mcp_servers(self):
         """Start all configured MCP servers"""
@@ -82,20 +59,12 @@ class MCPManager:
                 if server_cmd:
                     # Start server as subprocess
                     logger.info(f"Starting MCP server '{server_name}'")
-                    process = subprocess.Popen(
-                        [server_cmd] + server_args,
-                        stdout=subprocess.PIPE,
-                        stderr=subprocess.PIPE
-                    )
+                    process = self._start_process(server_cmd, server_args)
                     self.server_processes[server_name] = process
                     
-                    # Give the server a moment to start
-                    time.sleep(1)
-                    
                     # Check if process is still running
-                    if process.poll() is not None:
-                        stdout, stderr = process.communicate()
-                        logger.error(f"Server '{server_name}' failed to start: {stderr.decode()}")
+                    if not self._is_process_running(process):
+                        logger.error(f"Server '{server_name}' failed to start")
                     else:
                         logger.info(f"Server '{server_name}' started successfully (PID: {process.pid})")
                 else:
@@ -110,22 +79,153 @@ class MCPManager:
             logger.error(f"Error starting MCP servers: {e}")
             raise
     
-    def get_available_tools(self):
-        """Get list of available tools from MCP servers"""
-        return self.client.list_tools()
+    def _start_process(self, cmd: str, args: List[str]) -> psutil.Process:
+        """Start a process using psutil for better management"""
+        process = subprocess.Popen(
+            [cmd] + args,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
+        )
+        return psutil.Process(process.pid)
     
-    def execute_tool(self, request_id):
+    def _is_process_running(self, process: psutil.Process) -> bool:
+        """Check if a process is running using psutil"""
+        try:
+            # Give the process a moment to start
+            time.sleep(0.5)
+            return process.is_running() and process.status() != psutil.STATUS_ZOMBIE
+        except psutil.NoSuchProcess:
+            return False
+    
+    def get_available_tools(self) -> List[Dict[str, Any]]:
+        """Get list of available tools from MCP servers"""
+        try:
+            tools = self.client.list_tools()
+            logger.info(f"Retrieved {len(tools)} tools from MCP servers")
+            return tools
+        except Exception as e:
+            logger.error(f"Error retrieving tools: {e}")
+            return []
+    
+    def execute_tool(self, request_id: str) -> Dict[str, Any]:
         """Execute tool via MCP"""
-        return self.client.execute_tool(request_id)
+        try:
+            result = self.client.execute_tool(request_id)
+            logger.info(f"Tool execution for request {request_id} completed successfully")
+            return result
+        except Exception as e:
+            logger.error(f"Error executing tool for request {request_id}: {e}")
+            return {"error": str(e)}
+    
+    def restart_server(self, server_name: str) -> bool:
+        """Restart a specific MCP server"""
+        if server_name not in self.server_processes:
+            logger.error(f"Cannot restart unknown server '{server_name}'")
+            return False
+        
+        logger.info(f"Restarting MCP server '{server_name}'")
+        process = self.server_processes[server_name]
+        
+        # Gracefully terminate the process
+        try:
+            process.terminate()
+            gone, alive = psutil.wait_procs([process], timeout=5)
+            if process in alive:
+                logger.warning(f"Server '{server_name}' did not terminate gracefully, killing...")
+                process.kill()
+        except psutil.NoSuchProcess:
+            logger.warning(f"Server '{server_name}' already stopped")
+        
+        # Get the original command and args
+        server_config = next((s for s in self.config.get("servers", []) 
+                              if s.get("name") == server_name), None)
+        if not server_config:
+            logger.error(f"Cannot find configuration for server '{server_name}'")
+            return False
+        
+        server_cmd = server_config.get("command")
+        server_args = server_config.get("args", [])
+        
+        # Restart the process
+        new_process = self._start_process(server_cmd, server_args)
+        self.server_processes[server_name] = new_process
+        
+        if self._is_process_running(new_process):
+            logger.info(f"Server '{server_name}' restarted successfully (PID: {new_process.pid})")
+            return True
+        else:
+            logger.error(f"Failed to restart server '{server_name}'")
+            return False
+    
+    def get_server_status(self, server_name: Optional[str] = None) -> Dict[str, Dict[str, Any]]:
+        """Get status of all servers or a specific server"""
+        status = {}
+        
+        servers = [server_name] if server_name else self.server_processes.keys()
+        
+        for name in servers:
+            if name not in self.server_processes:
+                status[name] = {"status": "unknown", "error": "Server not found"}
+                continue
+            
+            process = self.server_processes[name]
+            try:
+                proc_status = process.status()
+                cpu_percent = process.cpu_percent(interval=0.1)
+                memory_info = process.memory_info()
+                
+                status[name] = {
+                    "pid": process.pid,
+                    "status": proc_status,
+                    "running": process.is_running(),
+                    "cpu_percent": cpu_percent,
+                    "memory_rss": memory_info.rss,
+                    "memory_vms": memory_info.vms,
+                    "create_time": process.create_time()
+                }
+            except psutil.NoSuchProcess:
+                status[name] = {"status": "stopped", "running": False, "error": "Process not found"}
+        
+        return status
+    
+    def stop_server(self, server_name: str) -> bool:
+        """Stop a specific MCP server"""
+        if server_name not in self.server_processes:
+            logger.error(f"Cannot stop unknown server '{server_name}'")
+            return False
+        
+        logger.info(f"Stopping MCP server '{server_name}'")
+        process = self.server_processes[server_name]
+        
+        try:
+            process.terminate()
+            gone, alive = psutil.wait_procs([process], timeout=5)
+            if process in alive:
+                logger.warning(f"Server '{server_name}' did not terminate gracefully, killing...")
+                process.kill()
+                gone, alive = psutil.wait_procs([process], timeout=3)
+                if process in alive:
+                    logger.error(f"Could not kill server '{server_name}'")
+                    return False
+            
+            del self.server_processes[server_name]
+            return True
+        except psutil.NoSuchProcess:
+            logger.warning(f"Server '{server_name}' already stopped")
+            del self.server_processes[server_name]
+            return True
     
     def __del__(self):
         """Clean up server processes on shutdown"""
-        for name, process in self.server_processes.items():
-            if process.poll() is None:  # If process is still running
-                logger.info(f"Terminating MCP server '{name}' (PID: {process.pid})")
-                process.terminate()
-                try:
-                    process.wait(timeout=5)
-                except subprocess.TimeoutExpired:
-                    logger.warning(f"Server '{name}' didn't terminate gracefully, forcing...")
-                    process.kill()
+        for name, process in list(self.server_processes.items()):
+            try:
+                if process.is_running():
+                    logger.info(f"Terminating MCP server '{name}' (PID: {process.pid})")
+                    process.terminate()
+                    try:
+                        process.wait(timeout=5)
+                    except psutil.TimeoutExpired:
+                        logger.warning(f"Server '{name}' didn't terminate gracefully, forcing...")
+                        process.kill()
+            except psutil.NoSuchProcess:
+                pass  # Process already gone
