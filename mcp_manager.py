@@ -44,8 +44,21 @@ class MCPManager:
         try:
             # Import MCP SDK
             if not TESTING:
-                from mcp import Client
-                client = Client()
+                from mcp.client.stdio import stdio_client, StdioServerParameters
+                # Initialize with the first server config or a default
+                server_config = self.config.get("servers", [{}])[0]
+                server_name = server_config.get("name", "default-server")
+                server_cmd = server_config.get("command", "")
+                server_args = server_config.get("args", [])
+                
+                # Create server parameters for the stdio client
+                server_params = StdioServerParameters(
+                    command=server_cmd if server_cmd else "echo", 
+                    args=server_args
+                )
+                
+                # Create the client
+                client = stdio_client(server=server_params)
                 logger.info("MCP Client initialized successfully")
                 return client
             else:
@@ -63,7 +76,7 @@ class MCPManager:
         try:
             # Import MCP SDK
             if not TESTING:
-                from mcp import start_server
+                from mcp.server import Server
             else:
                 from tests.mock_mcp import start_server
             
@@ -87,8 +100,21 @@ class MCPManager:
                 else:
                     # Use SDK to start server
                     logger.info(f"Starting MCP server '{server_name}' via SDK")
-                    # This is a placeholder - actual implementation depends on MCP SDK
-                    start_server(server_config)
+                    if not TESTING:
+                        # Create an MCP server instance
+                        version = server_config.get("version", "1.0.0")
+                        instructions = server_config.get("instructions", "")
+                        
+                        # This is just creating the server object, would need to be run separately
+                        # in an async context with proper streams for actual server operation
+                        server = Server(name=server_name, version=version, instructions=instructions)
+                        
+                        # Note: To actually run the server, you would need to call server.run()
+                        # with appropriate streams in an async context
+                        logger.warning(f"Server '{server_name}' object created but not running - " 
+                                       f"use a dedicated script with async context to run MCP servers")
+                    else:
+                        start_server(server_config)
         except ImportError:
             logger.error("Failed to import MCP SDK. Make sure it's installed.")
             raise
