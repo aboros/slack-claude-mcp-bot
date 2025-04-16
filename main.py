@@ -7,10 +7,11 @@ SLACK_BOT_TOKEN = os.environ.get("SLACK_BOT_TOKEN")
 CLAUDE_API_KEY = os.environ.get("CLAUDE_API_KEY")
 
 # Import handlers
-from slack_client import handle_mention, handle_tool_approval, handle_tool_denial
+from slack_client import handle_mention, handle_tool_approval, handle_tool_denial, mcp_manager
 
 def main():
     # Initialize MCP servers from config
+    global mcp_manager
     mcp_manager = MCPManager("mcp.config.json")
     
     # Initialize slack bolt app
